@@ -5,102 +5,125 @@ author: Adam Pončík
 email: adam.poncik47@gmail.com
 """
 import random
-interval = range(1000, 10000)
-computer_num = random.choice(interval)
 
-# Eliminuje duplicity ve vygenerovaném čísle
-while len(set(list(str(computer_num)))) < 4:
+# Definované konstanty
+req_num_length = 4  # počet cifer v hádaném čísle, lze snadno měnit obtížnost hry
+min_val = 10 ** (req_num_length - 1)  # spodní hranice intervalu n ciferného čísla
+max_val = 10 ** (req_num_length)      # horní hranice intervalu n ciferného čísla (exkluzivní pro range)
+interval = range(min_val, max_val)
+separator = "-" * 47  # oddělovač řádků
+
+# Generování n ciferného čísla neobsahující duplicity
+def generate_number():
     computer_num = random.choice(interval)
+    while len(set(str(computer_num))) < req_num_length:
+        computer_num = random.choice(interval)
+    return str(computer_num)
 
-computer_num_list = list(str(computer_num))
+def validate_input(inp: str):
+    """
+    Ověřuje správný formát vstupu --> čtyřciferné celé číslo, které
+    nezačíná nulou a neobsahuje dvě stejné číslice
 
-print(f"""
-Hi there!
------------------------------------------------
-I've generated a random 4 digit number for you.
-Let's play a bulls and cows game.
------------------------------------------------""")
-player_input = input('Enter a number: ')
-print("""-----------------------------------------------
-""")
-player_num = list(str(player_input))
-bulls = 0
-cows = 0
-guess_num = 0
+    Vrací boolean hodnotu True, pokud je uživatelský input v pořádku.
+    V případě problému vrátí False, doplněný o string, který
+    specifikuje problém.
+    """
+    if inp == "":
+        return False, "Invalid input, please try again: "
+    try:
+        int(inp)
+    except ValueError:
+        return False, "Invalid input, please try again: "
+    if len(inp) != req_num_length:
+        return False, f"Number must be exactly {req_num_length} digits long, try again: "
+    elif int(inp) < min_val:
+        return False, "Number mustn't start with zero, try again: "
+    elif len(set(inp)) < req_num_length:
+        return False, "The number mustn't contain duplicities, try again: "
+    return True, None
 
-
-# vyhodnocování podmínek
-while bulls < 4:
+def evaluate_guess(comp_num: str, guess: str):
     bulls = 0
     cows = 0
-    player_num = list(str(player_input))
+    for i, p in enumerate(guess):
+        if p == comp_num[i]:
+            bulls += 1
+        elif p in comp_num:
+            cows += 1
+    return bulls, cows
 
-# ošetření znaků a mezer v inputech
-    while True:
-        if player_input == "":
-            player_input = input("Invalid input, please try again: ")
-        elif player_num[0] == " " or player_num[-1] == " ":
-            player_input = input("Invalid input, please try again: ")
-        
-        try:
-            int(player_input)
-            break
-        except ValueError:
-            player_input = input("Invalid input, please try again: ")
-
-# splnění podmínek čísla
-    if len(str(player_input)) != 4:
-        player_input = input("Number must be exactly 4 digits long, try again: ")
-        continue
-    elif int(player_input) < 1000:
-        player_input = input("Number mustn't start with zero, try again: ")
-        continue
-    elif len(set(list(str(player_input)))) < 4:
-        player_input = input("The number mustn't contain duplicities, try again: ")
-        continue
-
-# Vyhodnocení bulls / cows
-    for p in player_num:
-        if p in computer_num_list:
-            if player_num.index(p) == computer_num_list.index(p):
-                bulls += 1
-            else:
-                 cows += 1
-        else:
-            continue
-    if bulls < 4:
-        if bulls == 1 and cows == 1:
-            player_input = input(f"""-----------------------------------------------
-There is 1 bull and 1 cow in your number. Try again: """)
-            guess_num += 1
-            continue
-        elif bulls == 1:
-            player_input = input(f"""-----------------------------------------------
-There is 1 bull and {cows} cows in your number. Try again: """)
-            guess_num += 1
-            continue
-        elif cows == 1:
-            player_input = input(f"""-----------------------------------------------
-There are {bulls} bulls and 1 cow in your number. Try again: """)
-            guess_num += 1
-            continue
-        
-        player_input = input(f"""-----------------------------------------------
-There are {bulls} bulls and {cows} cows in your number. Try again: """)
-        guess_num += 1
-        continue
-
+def result_message(bulls: int, cows: int):
+    """
+    Vrací string, který při neúspěšném pokusu o uhodnutí specifikuje
+    výskyt "bulls" a "cows". Výstup zohledňuje jednotné a množné čísla
+    anglické gramatiky.
+    """
+    if bulls == 1 and cows == 1:
+        return f"""{separator}
+There is 1 bull and 1 cow in your number. Try again: """
+    elif bulls == 1:
+        return f"""{separator}
+There is 1 bull and {cows} cows in your number. Try again: """
+    elif cows == 1:
+        return f"""{separator}
+There are {bulls} bulls and 1 cow in your number. Try again: """
     else:
-        guess_num += 1
-        continue
+        return f"""{separator}
+There are {bulls} bulls and {cows} cows in your number. Try again: """
 
-if guess_num ==1:
-    print(f"""-----------------------------------------------
+def print_intro():
+    print(f"""
+Hi there!
+{separator}
+I've generated a random {req_num_length} digit number for you.
+Let's play a bulls and cows game.
+{separator}""")
+
+def print_outro(guess_num: int):
+    if guess_num == 1:
+        print(f"""{separator}
 Correct, you've guessed the right number in {guess_num} guess!
------------------------------------------------
+{separator}
 That's amazing!""")
-else:
-    print(f"""-----------------------------------------------
+    else:
+        print(f"""{separator}
 Correct, you've guessed the right number in {guess_num} guesses!
------------------------------------------------
+{separator}
 That's amazing!""")
+
+def run_game() -> int:
+    """
+    Celá hra běží jako smyčka, která skončí uhodnutím správného čísla.
+    Výstupem je číslo pokusu, při kterém bylo uhádnuto správné číslo.
+    """
+    text = "Enter a number: "
+    guess_num = 0
+    comp_num = generate_number()
+    bulls = 0
+    while bulls < req_num_length:
+        bulls = 0
+        cows = 0
+        player_input = input(text).strip()
+
+        ok, msg = validate_input(player_input)
+        if not ok:
+            text = msg
+            continue
+
+        bulls, cows = evaluate_guess(comp_num, player_input)
+
+        if bulls < req_num_length:
+            text = result_message(bulls, cows)
+            guess_num += 1
+            continue
+        else:
+            guess_num += 1
+            break
+
+    return guess_num
+
+if __name__ == "__main__":
+    print_intro()
+    total_guesses = run_game()
+    print_outro(total_guesses)
